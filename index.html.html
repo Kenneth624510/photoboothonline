@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Together, Apart — Photo Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg: #1b1a2e;
+    --bg-2: #221f3b;
+    --panel: #262143;
+    --panel-2: #2e2440;
+    --cream: #f5efe6;
+    --cream-dim: #cfc7ba;
+    --gold: #e8a87c;
+    --rose: #d46a8f;
+    --line: rgba(245,239,230,0.16);
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(700px 500px at 12% -10%, rgba(232,168,124,0.16), transparent 60%),
+      radial-gradient(700px 500px at 88% 110%, rgba(212,106,143,0.14), transparent 60%),
+      var(--bg);
+    color: var(--cream);
+    font-family: var(--font-body);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+  }
+  #app{ width:100%; max-width:980px; }
+  .screen{ display:none; }
+  .screen.active{ display:block; animation: fadeIn .5s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color: var(--gold); font-weight:600; margin:0 0 10px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size: clamp(30px, 5vw, 46px);
+    line-height:1.05;
+    margin:0 0 12px;
+    letter-spacing:-0.01em;
+  }
+  h1 em{ font-style:italic; color:var(--rose); font-weight:500; }
+  p.lead{ color:var(--cream-dim); font-size:15.5px; line-height:1.6; max-width:520px; margin:0 0 28px; }
+
+  .card{
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding: 28px;
+  }
+  label{ display:block; font-size:12.5px; color:var(--cream-dim); margin-bottom:6px; font-weight:500; }
+  input[type=text]{
+    width:100%;
+    background: rgba(245,239,230,0.06);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding: 12px 14px;
+    border-radius:10px;
+    font-family: var(--font-body);
+    font-size:15px;
+    outline:none;
+    transition: border-color .2s;
+  }
+  input[type=text]:focus{ border-color: var(--gold); }
+  .row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .field{ flex:1; min-width:200px; margin-bottom:18px; }
+
+  .btn{
+    font-family: var(--font-body);
+    font-weight:600;
+    font-size:14.5px;
+    border:none;
+    border-radius:10px;
+    padding: 13px 22px;
+    cursor:pointer;
+    transition: transform .15s, filter .15s;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{ background: linear-gradient(135deg, var(--gold), var(--rose)); color:#241826; }
+  .btn-primary:hover{ filter: brightness(1.08); }
+  .btn-ghost{ background: rgba(245,239,230,0.08); color: var(--cream); border:1px solid var(--line); }
+  .btn-ghost:hover{ background: rgba(245,239,230,0.14); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .actions{ display:flex; gap:12px; margin-top:6px; flex-wrap:wrap; }
+  .hint{ font-size:12.5px; color: var(--cream-dim); margin-top:16px; line-height:1.5; }
+  .err{ color:#f2a2a2; font-size:13px; margin-top:10px; min-height:16px; }
+
+  /* connect screen */
+  .connect-wrap{ text-align:center; padding: 50px 20px; }
+  .thread{
+    position:relative;
+    width: 100%; max-width:420px;
+    height:2px;
+    margin: 36px auto;
+    background: repeating-linear-gradient(90deg, var(--line) 0 8px, transparent 8px 16px);
+  }
+  .thread .pulse{
+    position:absolute; top:50%; left:0;
+    width:14px; height:14px; margin-top:-7px;
+    border-radius:50%;
+    background: var(--rose);
+    box-shadow: 0 0 16px 2px rgba(212,106,143,0.7);
+    animation: travel 2.6s ease-in-out infinite;
+  }
+  @keyframes travel{
+    0%{ left:0%; opacity:.4; }
+    50%{ opacity:1; }
+    100%{ left:100%; opacity:.4; }
+  }
+  .status-text{ font-family: var(--font-display); font-size:20px; margin-bottom:4px; }
+  .status-sub{ color:var(--cream-dim); font-size:13.5px; }
+
+  /* booth screen */
+  .booth-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+  .code-chip{
+    font-family: var(--font-body); font-size:12px; color:var(--cream-dim);
+    border:1px solid var(--line); padding:5px 12px; border-radius:100px;
+    letter-spacing:.06em;
+  }
+  .video-pair{
+    display:grid; grid-template-columns:1fr 1fr; gap:2px;
+    background: var(--line);
+    border-radius:16px; overflow:hidden;
+    border:1px solid var(--line);
+    position:relative;
+  }
+  .video-slot{ position:relative; background:#0f0e1c; aspect-ratio: 4/3; overflow:hidden; }
+  .video-slot video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .video-slot .tag{
+    position:absolute; bottom:8px; left:10px; font-size:11.5px;
+    background: rgba(20,17,32,0.55); backdrop-filter: blur(2px);
+    padding:3px 9px; border-radius:100px; letter-spacing:.03em;
+  }
+  .video-pair .divider-heart{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:30px; height:30px; border-radius:50%;
+    background: var(--rose); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:14px; z-index:2; box-shadow: 0 0 0 4px var(--bg);
+  }
+  .countdown-overlay{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background: rgba(15,14,28,0.35); z-index:5;
+  }
+  .countdown-overlay span{
+    font-family: var(--font-display); font-size:110px; color:var(--cream);
+    text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    animation: pop .9s ease;
+  }
+  @keyframes pop{ 0%{ transform:scale(0.5); opacity:0;} 30%{ transform:scale(1.15); opacity:1;} 100%{ transform:scale(1); opacity:1;} }
+
+  .controls{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; flex-wrap:wrap; }
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; }
+  .filter-btn{
+    font-size:12.5px; padding:8px 13px; border-radius:100px;
+    border:1px solid var(--line); background:rgba(245,239,230,0.05); color:var(--cream-dim);
+    cursor:pointer; font-family:var(--font-body);
+  }
+  .filter-btn.active{ background: var(--gold); color:#241826; border-color:var(--gold); font-weight:600; }
+
+  .capture-btn{
+    width:64px; height:64px; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, var(--gold), var(--rose));
+    border: 3px solid var(--cream); cursor:pointer; flex-shrink:0;
+  }
+  .capture-btn:active{ transform: scale(0.94); }
+
+  .strip-area{ margin-top:26px; display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap; }
+  .strip-frames{ display:flex; gap:10px; flex-wrap:wrap; flex:1; }
+  .frame-thumb{ width:150px; border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+  .frame-thumb img{ width:100%; display:block; }
+  .strip-empty{ color:var(--cream-dim); font-size:13px; padding:14px 0; }
+
+  footer.leave{ margin-top:26px; display:flex; gap:12px; }
+  a.download-link{ text-decoration:none; }
+  @media (max-width:640px){
+    .video-slot{ aspect-ratio: 3/4; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- START SCREEN -->
+  <section id="screen-start" class="screen active">
+    <p class="eyebrow">A photo booth for two, anywhere</p>
+    <h1>Same booth. <em>Different skies.</em></h1>
+    <p class="lead">Open this on both ends, share a room code, and step into one booth together — even from two cities. Cameras connect directly between your browsers.</p>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label for="nameInput">Your name (shown as your label)</label>
+          <input type="text" id="nameInput" placeholder="e.g. Mira" maxlength="16" />
+        </div>
+        <div class="field">
+          <label for="codeInput">Room code (share this with them)</label>
+          <input type="text" id="codeInput" placeholder="e.g. dusk-orchid-7" maxlength="30" />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="createBtn">Create room</button>
+        <button class="btn btn-ghost" id="joinBtn">Join room</button>
+      </div>
+      <div class="err" id="startErr"></div>
+      <div class="hint">One of you creates the room and sends the code to the other, who joins with the same code. Camera access is required.</div>
+    </div>
+  </section>
+
+  <!-- CONNECT SCREEN -->
+  <section id="screen-connect" class="screen">
+    <div class="card connect-wrap">
+      <div class="status-text" id="connectStatus">Opening your camera…</div>
+      <div class="status-sub" id="connectSub">This takes a second.</div>
+      <div class="thread"><div class="pulse"></div></div>
+      <button class="btn btn-ghost" id="cancelConnectBtn">Cancel</button>
+      <div class="err" id="connectErr"></div>
+    </div>
+  </section>
+
+  <!-- BOOTH SCREEN -->
+  <section id="screen-booth" class="screen">
+    <div class="booth-top">
+      <div>
+        <p class="eyebrow" style="margin-bottom:4px;">Connected</p>
+        <h1 style="font-size:26px; margin-bottom:0;">Say cheese <em>together</em>.</h1>
+      </div>
+      <div class="code-chip" id="roomChip">room: —</div>
+    </div>
+
+    <div class="video-pair">
+      <div class="video-slot">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="tag" id="localTag">You</div>
+      </div>
+      <div class="video-slot">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="tag" id="remoteTag">Them</div>
+      </div>
+      <div class="divider-heart">♥</div>
+      <div class="countdown-overlay" id="countdownOverlay"><span id="countdownNum">3</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="filters" id="filterBar">
+        <button class="filter-btn active" data-filter="none">None</button>
+        <button class="filter-btn" data-filter="noir">Noir</button>
+        <button class="filter-btn" data-filter="sepia">Sepia</button>
+        <button class="filter-btn" data-filter="sunkissed">Sunkissed</button>
+        <button class="filter-btn" data-filter="dreamy">Dreamy</button>
+      </div>
+      <button class="capture-btn" id="captureBtn" title="Capture (synced countdown)"></button>
+    </div>
+
+    <div class="strip-area">
+      <div class="strip-frames" id="stripFrames">
+        <div class="strip-empty">Your strip will fill up here — up to 4 shots.</div>
+      </div>
+    </div>
+
+    <footer class="leave">
+      <button class="btn btn-primary" id="downloadStripBtn" disabled>Download strip</button>
+      <button class="btn btn-ghost" id="newStripBtn">New strip</button>
+      <button class="btn btn-ghost" id="leaveBtn">Leave room</button>
+    </footer>
+  </section>
+
+</div>
+
+<canvas id="workCanvas" style="display:none;"></canvas>
+<canvas id="stripCanvas" style="display:none;"></canvas>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const screens = { start: $('screen-start'), connect: $('screen-connect'), booth: $('screen-booth') };
+  function show(name){ Object.values(screens).forEach(s=>s.classList.remove('active')); screens[name].classList.add('active'); }
+
+  let myName = '';
+  let roomCode = '';
+  let isHost = false;
+  let peer = null;
+  let mediaCall = null;
+  let dataConn = null;
+  let localStream = null;
+  let retryTimer = null;
+  let connectCancelled = false;
+
+  const localVideo = $('localVideo');
+  const remoteVideo = $('remoteVideo');
+  const workCanvas = $('workCanvas');
+  const stripCanvas = $('stripCanvas');
+
+  const FILTERS = {
+    none: '',
+    noir: 'grayscale(1) contrast(1.15) brightness(0.98)',
+    sepia: 'sepia(0.65) contrast(1.05) brightness(1.03)',
+    sunkissed: 'sepia(0.25) saturate(1.5) contrast(0.92) brightness(1.12)',
+    dreamy: 'brightness(1.12) contrast(0.88) saturate(1.25) blur(0.6px)'
+  };
+  let currentFilter = 'none';
+
+  $('filterBar').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.filter-btn');
+    if(!btn) return;
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    localVideo.style.filter = FILTERS[currentFilter];
+    remoteVideo.style.filter = FILTERS[currentFilter];
+  });
+
+  function hostPeerId(code){
+    return 'together-photobooth-' + code.replace(/[^a-z0-9-]/g,'');
+  }
+
+  // ---------- start screen ----------
+  $('createBtn').addEventListener('click', ()=> startFlow(true));
+  $('joinBtn').addEventListener('click', ()=> startFlow(false));
+
+  async function startFlow(host){
+    const nameVal = $('nameInput').value.trim();
+    const codeVal = $('codeInput').value.trim().toLowerCase().replace(/\s+/g,'-');
+    $('startErr').textContent = '';
+    if(!nameVal){ $('startErr').textContent = 'Add your name first.'; return; }
+    if(!codeVal){ $('startErr').textContent = 'Add a room code.'; return; }
+    myName = nameVal;
+    roomCode = codeVal;
+    isHost = host;
+    $('roomChip').textContent = 'room: ' + roomCode;
+    $('localTag').textContent = myName;
+    show('connect');
+    $('connectStatus').textContent = 'Opening your camera…';
+    $('connectSub').textContent = '';
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video:{ width:{ideal:640}, height:{ideal:480} }, audio:false });
+      localVideo.srcObject = localStream;
+    } catch(err){
+      $('connectErr').textContent = 'Could not access your camera. Check permissions and try again.';
+      return;
+    }
+    $('connectStatus').textContent = isHost ? 'Waiting for your partner to join…' : 'Connecting to the room…';
+    $('connectSub').textContent = 'Share the room code if you haven\'t already.';
+    setupPeerConnection();
+  }
+
+  $('cancelConnectBtn').addEventListener('click', ()=>{
+    cleanupConnection();
+    show('start');
+  });
+
+  // ---------- WebRTC via PeerJS (public free broker, works on any host) ----------
+  function setupPeerConnection(){
+    connectCancelled = false;
+    const id = isHost ? hostPeerId(roomCode) : undefined;
+    peer = new Peer(id, {
+      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+    });
+
+    peer.on('error', (err)=>{
+      if(connectCancelled) return;
+      if(err.type === 'unavailable-id'){
+        $('connectErr').textContent = 'That room code is already in use right now. Try a more unique code.';
+        return;
+      }
+      if(err.type === 'peer-unavailable' && !isHost){
+        // host not online yet — retry shortly
+        retryTimer = setTimeout(()=>{ if(!connectCancelled) callHost(); }, 2000);
+        return;
+      }
+      console.error('peer error', err);
+      $('connectErr').textContent = 'Connection hiccup — still trying…';
+    });
+
+    if(isHost){
+      peer.on('open', ()=>{
+        $('connectStatus').textContent = 'Waiting for your partner to join…';
+      });
+      peer.on('call', (call)=>{
+        mediaCall = call;
+        call.answer(localStream);
+        call.on('stream', (remoteStream)=>{
+          remoteVideo.srcObject = remoteStream;
+          onConnected();
+        });
+      });
+      peer.on('connection', (conn)=>{
+        dataConn = conn;
+        wireDataConn();
+      });
+    } else {
+      peer.on('open', ()=>{
+        callHost();
+      });
+    }
+  }
+
+  function callHost(){
+    if(connectCancelled || !peer || peer.destroyed) return;
+    $('connectStatus').textContent = 'Connecting to the room…';
+    const call = peer.call(hostPeerId(roomCode), localStream);
+    mediaCall = call;
+    call.on('stream', (remoteStream)=>{
+      remoteVideo.srcObject = remoteStream;
+      onConnected();
+    });
+    dataConn = peer.connect(hostPeerId(roomCode));
+    wireDataConn();
+  }
+
+  function wireDataConn(){
+    if(!dataConn) return;
+    dataConn.on('data', (data)=>{
+      if(data === 'capture') runCountdownAndCapture(false);
+    });
+  }
+
+  function onConnected(){
+    if(retryTimer){ clearTimeout(retryTimer); retryTimer = null; }
+    $('remoteTag').textContent = 'Them';
+    show('booth');
+  }
+
+  function cleanupConnection(){
+    connectCancelled = true;
+    if(retryTimer){ clearTimeout(retryTimer); retryTimer = null; }
+    if(mediaCall){ try{ mediaCall.close(); }catch(e){} mediaCall = null; }
+    if(dataConn){ try{ dataConn.close(); }catch(e){} dataConn = null; }
+    if(peer){ try{ peer.destroy(); }catch(e){} peer = null; }
+    if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  }
+
+  $('leaveBtn').addEventListener('click', async ()=>{
+    cleanupConnection();
+    stripShots = [];
+    renderStrip();
+    show('start');
+  });
+
+  // ---------- capture ----------
+  let stripShots = []; // dataURLs
+
+  $('captureBtn').addEventListener('click', ()=>{
+    if(dataConn && dataConn.open){
+      dataConn.send('capture');
+    }
+    runCountdownAndCapture(true);
+  });
+
+  function runCountdownAndCapture(iAmInitiator){
+    if(stripShots.length >= 4) return;
+    const overlay = $('countdownOverlay');
+    const numEl = $('countdownNum');
+    overlay.style.display = 'flex';
+    let n = 3;
+    numEl.textContent = n;
+    const iv = setInterval(()=>{
+      n -= 1;
+      if(n > 0){
+        numEl.textContent = n;
+        numEl.style.animation = 'none'; void numEl.offsetWidth; numEl.style.animation = 'pop .9s ease';
+      } else {
+        clearInterval(iv);
+        overlay.style.display = 'none';
+        captureFrame();
+      }
+    }, 800);
+  }
+
+  function drawVideoToCtx(ctx, video, x, y, w, h, filterCss){
+    ctx.save();
+    ctx.filter = filterCss || 'none';
+    // cover-fit crop
+    const vw = video.videoWidth || w, vh = video.videoHeight || h;
+    const scale = Math.max(w/vw, h/vh);
+    const dw = vw*scale, dh = vh*scale;
+    const dx = x + (w-dw)/2, dy = y + (h-dh)/2;
+    ctx.beginPath();
+    ctx.rect(x,y,w,h);
+    ctx.clip();
+    ctx.drawImage(video, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  function captureFrame(){
+    const W = 640, H = 260, pad = 4;
+    workCanvas.width = W; workCanvas.height = H;
+    const ctx = workCanvas.getContext('2d');
+    ctx.fillStyle = '#0f0e1c';
+    ctx.fillRect(0,0,W,H);
+    const half = (W - pad)/2;
+    drawVideoToCtx(ctx, localVideo, 0, 0, half, H, FILTERS[currentFilter]);
+    drawVideoToCtx(ctx, remoteVideo, half+pad, 0, half, H, FILTERS[currentFilter]);
+    // divider
+    ctx.fillStyle = '#f5efe6';
+    ctx.fillRect(half, 0, pad, H);
+
+    const dataUrl = workCanvas.toDataURL('image/jpeg', 0.92);
+    stripShots.push(dataUrl);
+    renderStrip();
+  }
+
+  function renderStrip(){
+    const wrap = $('stripFrames');
+    wrap.innerHTML = '';
+    if(stripShots.length === 0){
+      wrap.innerHTML = '<div class="strip-empty">Your strip will fill up here — up to 4 shots.</div>';
+      $('downloadStripBtn').disabled = true;
+      return;
+    }
+    stripShots.forEach((src)=>{
+      const d = document.createElement('div');
+      d.className = 'frame-thumb';
+      const img = document.createElement('img');
+      img.src = src;
+      d.appendChild(img);
+      wrap.appendChild(d);
+    });
+    $('downloadStripBtn').disabled = false;
+  }
+
+  $('newStripBtn').addEventListener('click', ()=>{
+    stripShots = [];
+    renderStrip();
+  });
+
+  $('downloadStripBtn').addEventListener('click', async ()=>{
+    if(stripShots.length === 0) return;
+    const frameW = 600, frameH = Math.round(600*(260/640));
+    const padOuter = 24, padBetween = 16, footerH = 60, headerH = 44;
+    const totalH = headerH + stripShots.length*frameH + (stripShots.length-1)*padBetween + footerH + padOuter*2;
+    stripCanvas.width = frameW + padOuter*2;
+    stripCanvas.height = totalH;
+    const ctx = stripCanvas.getContext('2d');
+    ctx.fillStyle = '#f5efe6';
+    ctx.fillRect(0,0,stripCanvas.width, stripCanvas.height);
+
+    ctx.fillStyle = '#241826';
+    ctx.font = '600 20px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Together, Apart', stripCanvas.width/2, padOuter + 26);
+
+    const imgs = await Promise.all(stripShots.map(src => new Promise(res=>{
+      const im = new Image(); im.onload = ()=>res(im); im.src = src;
+    })));
+
+    let y = padOuter + headerH;
+    imgs.forEach(im=>{
+      ctx.drawImage(im, padOuter, y, frameW, frameH);
+      y += frameH + padBetween;
+    });
+
+    ctx.fillStyle = '#6b6270';
+    ctx.font = '13px Georgia, serif';
+    const dateStr = new Date().toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+    ctx.fillText(`${myName} & partner  •  room ${roomCode}  •  ${dateStr}`, stripCanvas.width/2, stripCanvas.height - padOuter - 18);
+
+    const link = document.createElement('a');
+    link.download = `photobooth-strip-${roomCode}.png`;
+    link.href = stripCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+})();
+</script>
+</body>
+</html>
